@@ -10,6 +10,10 @@ pub type ChatRecord {
   ChatRecord(id: ChatId, title: String, subject: Subject(ChatRoomMessage))
 }
 
+pub type CreateChatDto {
+  CreateChatDto(id: ChatId, title: String)
+}
+
 pub type ChatRegistryMessage {
   CreateChat(reply: Subject(Result(String, String)), id: ChatId, title: String)
   GetChat(reply: Subject(Result(ChatRecord, Nil)), id: ChatId)

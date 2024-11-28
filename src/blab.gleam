@@ -1,15 +1,10 @@
 import chat_registry.{
-  type ChatRecord, CreateChat, DeleteChat, GetChat, ListChats,
-  chat_registry_loop,
+  CreateChat, CreateChatDto, DeleteChat, GetChat, ListChats, chat_registry_loop,
 }
-import chat_room.{
-  type ChatMessage, type TextMessage, AllMessages, GetAllMessages, NewMessage,
-  Publish, Subscribe, TextMessage, Unsubscribe,
-}
-import gleam/bit_array
-import gleam/bytes_tree
+import chat_room.{GetAllMessages, NewMessage, Publish, Subscribe, Unsubscribe}
+import decoders.{create_chat_from_json, text_message_from_json}
+import encoders.{chat_list_to_json, chat_message_to_json, chat_to_json}
 import gleam/dict
-import gleam/dynamic
 import gleam/erlang/process
 import gleam/function
 import gleam/http
@@ -17,106 +12,9 @@ import gleam/http/request.{type Request}
 import gleam/http/response.{type Response}
 import gleam/json
 import gleam/otp/actor
-import gleam/result
 import gleam/string_tree
+import helpers.{body_json, new_response}
 import mist.{type Connection, type ResponseData}
-
-pub type CreateChatDto {
-  CreateChatDto(id: String, title: String)
-}
-
-// Decoders
-
-pub fn create_chat_from_json(
-  json_string: String,
-) -> Result(CreateChatDto, json.DecodeError) {
-  json.decode(
-    from: json_string,
-    using: dynamic.decode2(
-      CreateChatDto,
-      dynamic.field("id", of: dynamic.string),
-      dynamic.field("title", of: dynamic.string),
-    ),
-  )
-}
-
-pub fn text_message_from_json(
-  json_string: String,
-) -> Result(TextMessage, json.DecodeError) {
-  json.decode(
-    from: json_string,
-    using: dynamic.decode4(
-      TextMessage,
-      dynamic.field("id", of: dynamic.string),
-      dynamic.field("name", of: dynamic.string),
-      dynamic.field("time", of: dynamic.int),
-      dynamic.field("content", of: dynamic.string),
-    ),
-  )
-}
-
-// Encoders
-
-pub fn chat_to_json(chat: ChatRecord) {
-  json.object([
-    #("id", json.string(chat.id)),
-    #("title", json.string(chat.title)),
-  ])
-}
-
-pub fn chat_list_to_json(chat_list: List(ChatRecord)) {
-  json.array(chat_list, of: chat_to_json)
-}
-
-pub fn text_message_to_json(text_message: TextMessage) {
-  json.object([
-    #("id", json.string(text_message.id)),
-    #("name", json.string(text_message.name)),
-    #("time", json.int(text_message.time)),
-    #("content", json.string(text_message.content)),
-  ])
-}
-
-pub fn chat_message_to_json(chat_message: ChatMessage) {
-  case chat_message {
-    NewMessage(text_message) ->
-      json.object([
-        #("type", json.string("new_message")),
-        #("message", text_message_to_json(text_message)),
-      ])
-    AllMessages(messages) ->
-      json.object([
-        #("type", json.string("all_messages")),
-        #("messages", json.array(messages, of: text_message_to_json)),
-      ])
-  }
-}
-
-// Helpers
-
-pub fn body_json(
-  req: Request(Connection),
-  dto_from_json: fn(String) -> Result(dto, json.DecodeError),
-) -> Result(dto, String) {
-  use body <- result.try(
-    req
-    |> mist.read_body(10_024 * 10_024 * 8)
-    |> result.replace_error("Could not read request body."),
-  )
-  use json_string <- result.try(
-    body.body
-    |> bit_array.to_string
-    |> result.replace_error("Could not convert request body to string."),
-  )
-  json_string |> dto_from_json |> result.replace_error("Failed")
-}
-
-fn new_response(status: Int, body: String) {
-  response.new(status)
-  |> response.set_body(body |> bytes_tree.from_string |> mist.Bytes)
-}
-
-// Main
 
 pub fn main() {
   let not_found = new_response(404, "")
