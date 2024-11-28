@@ -1,6 +1,6 @@
 # Blab
 
-Just a basic chat system I'm using while trying to learn Gleam / OTP.
+Just a basic chat system, part of my attempts to learn Gleam / OTP.
 
 ## Roadmap
 
