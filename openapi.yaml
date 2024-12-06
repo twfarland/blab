@@ -1,0 +1,180 @@
+openapi: 3.1.0
+info:
+  title: Blab Chat API
+  version: 1.0.0
+  description: A basic chat system built with Gleam
+
+servers:
+  - url: http://localhost:3000
+
+paths:
+  /chat:
+    post:
+      summary: Create a new chat room
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateChatDto"
+      responses:
+        "200":
+          description: Chat created successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Chat created"
+        "422":
+          description: Invalid request body
+          content:
+            text/plain:
+              schema:
+                type: string
+
+    get:
+      summary: List all chat rooms
+      responses:
+        "200":
+          description: List of chat rooms
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ChatRecord"
+
+  /chat/{id}:
+    get:
+      summary: Get chat room details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chat room details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatRecord"
+        "404":
+          description: Chat room not found
+
+    post:
+      summary: Send a message to chat room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TextMessage"
+      responses:
+        "200":
+          description: Message sent successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Message sent"
+        "404":
+          description: Chat room not found
+        "422":
+          description: Invalid message format
+
+    delete:
+      summary: Delete a chat room
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Chat deleted successfully
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "Deleted chat"
+        "404":
+          description: Chat room not found
+
+  /chat/{id}/stream:
+    get:
+      summary: Subscribe to chat room messages (SSE)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSE stream of chat messages
+          content:
+            text/event-stream:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    enum: [new_message, all_messages]
+                  message:
+                    oneOf:
+                      - $ref: "#/components/schemas/TextMessage"
+                      - type: array
+                        items:
+                          $ref: "#/components/schemas/TextMessage"
+        "404":
+          description: Chat room not found
+
+components:
+  schemas:
+    CreateChatDto:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+
+    ChatRecord:
+      type: object
+      required:
+        - id
+        - title
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+
+    TextMessage:
+      type: object
+      required:
+        - id
+        - name
+        - time
+        - content
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        time:
+          type: integer
+        content:
+          type: string

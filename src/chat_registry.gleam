@@ -1,6 +1,12 @@
-import chat_room.{type ChatRoomMessage, ChatRoomState, Stop, chat_room_loop}
+import chat_room.{
+  type ChatRoomMessage, ChatRoomState, GetAllMessages, Stop, Subscribe,
+  chat_room_loop,
+}
 import gleam/dict.{type Dict}
+import gleam/dynamic
 import gleam/erlang/process.{type Subject}
+import gleam/function
+import gleam/json
 import gleam/otp/actor
 
 pub type ChatId =
@@ -39,8 +45,6 @@ pub fn chat_registry_loop(
           let assert Ok(subject) =
             actor.start(ChatRoomState([], []), chat_room_loop)
 
-          reply |> process.send(Ok("Chat created"))
-
           dict.insert(state, id, ChatRecord(id, title, subject))
           |> actor.continue
         }
@@ -71,4 +75,41 @@ pub fn chat_registry_loop(
       }
     }
   }
+}
+
+pub fn create_chat_client(chat: ChatRecord) {
+  let client = process.new_subject()
+
+  let selector =
+    process.new_selector()
+    |> process.selecting(client, function.identity)
+
+  process.send(chat.subject, Subscribe(client))
+  process.send(chat.subject, GetAllMessages(client))
+
+  #(client, selector)
+}
+
+pub fn create_chat_from_json(
+  json_string: String,
+) -> Result(CreateChatDto, json.DecodeError) {
+  json.decode(
+    from: json_string,
+    using: dynamic.decode2(
+      CreateChatDto,
+      dynamic.field("id", of: dynamic.string),
+      dynamic.field("title", of: dynamic.string),
+    ),
+  )
+}
+
+pub fn chat_to_json(chat: ChatRecord) {
+  json.object([
+    #("id", json.string(chat.id)),
+    #("title", json.string(chat.title)),
+  ])
+}
+
+pub fn chat_list_to_json(chat_list: List(ChatRecord)) {
+  json.array(chat_list, of: chat_to_json)
 }

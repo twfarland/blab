@@ -1,4 +1,6 @@
+import gleam/dynamic
 import gleam/erlang/process.{type Subject}
+import gleam/json
 import gleam/list
 import gleam/otp/actor
 
@@ -62,5 +64,44 @@ pub fn chat_room_loop(message: ChatRoomMessage, state: ChatRoomState) {
     Stop -> {
       actor.Stop(process.Normal)
     }
+  }
+}
+
+pub fn text_message_from_json(
+  json_string: String,
+) -> Result(TextMessage, json.DecodeError) {
+  json.decode(
+    from: json_string,
+    using: dynamic.decode4(
+      TextMessage,
+      dynamic.field("id", of: dynamic.string),
+      dynamic.field("name", of: dynamic.string),
+      dynamic.field("time", of: dynamic.int),
+      dynamic.field("content", of: dynamic.string),
+    ),
+  )
+}
+
+pub fn text_message_to_json(text_message: TextMessage) {
+  json.object([
+    #("id", json.string(text_message.id)),
+    #("name", json.string(text_message.name)),
+    #("time", json.int(text_message.time)),
+    #("content", json.string(text_message.content)),
+  ])
+}
+
+pub fn chat_message_to_json(chat_message: ChatMessage) {
+  case chat_message {
+    NewMessage(text_message) ->
+      json.object([
+        #("type", json.string("new_message")),
+        #("message", text_message_to_json(text_message)),
+      ])
+    AllMessages(messages) ->
+      json.object([
+        #("type", json.string("all_messages")),
+        #("messages", json.array(messages, of: text_message_to_json)),
+      ])
   }
 }
